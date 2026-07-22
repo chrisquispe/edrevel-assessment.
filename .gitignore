@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific: runtime-generated files, not source code
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/keyframes/*
+!backend/storage/keyframes/.gitkeep
+backend/tasks.db
+backend/server.log
+.DS_Store
