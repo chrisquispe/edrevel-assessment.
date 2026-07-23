@@ -225,3 +225,4 @@ backend/storage/keyframes/*
 backend/tasks.db
 backend/server.log
 .DS_Store
+backend/yolov8n.pt
