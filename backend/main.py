@@ -49,14 +49,14 @@ UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-def run_pipeline_stub(task_id: str):
+def run_pipeline(task_id: str):
     """
-    STUB / placeholder for the real video-processing pipeline.
-    Simulates processing time, then writes back fake data matching the
-    required JSON schema. We'll replace this with the real CV pipeline
-    (YOLO detection, tracking, motion, interaction) next.
+    Runs the REAL video-processing pipeline in the background after
+    upload: reads the video, runs detection/tracking/motion/interaction
+    analysis, and saves the resulting JSON to the task's database row.
     """
     from database import SessionLocal
+    from pipeline.pipeline import run_full_pipeline
 
     db = SessionLocal()
     try:
@@ -64,32 +64,10 @@ def run_pipeline_stub(task_id: str):
         task.status = "processing"
         db.commit()
 
-        time.sleep(3)  # simulate work
-
-        fake_result = {
-            "videoMetadata": {
-                "duration_seconds": 8.0,
-                "frame_count": 192,
-                "resolution": "1280x720",
-                "fps": 24,
-            },
-            "objectsDetected": [
-                {
-                    "object_id": 1,
-                    "class": "cable",
-                    "motion_history": [
-                        {"frame_range": [0, 90], "state": "moving"},
-                        {"frame_range": [91, 191], "state": "stationary"},
-                    ],
-                    "interactions": [
-                        {"interacted_by_person": 0, "frame_start": 0, "frame_end": 120}
-                    ],
-                }
-            ],
-        }
+        result = run_full_pipeline(task.video_path)
 
         task.status = "complete"
-        task.result_json = json.dumps(fake_result)
+        task.result_json = json.dumps(result)
         db.commit()
     except Exception as e:
         task.status = "failed"
@@ -131,7 +109,7 @@ async def upload_video(
 
     # Schedule the pipeline to run AFTER this response is sent back to the
     # client. This is what makes the upload feel instant.
-    background_tasks.add_task(run_pipeline_stub, task_id)
+    background_tasks.add_task(run_pipeline, task_id)
 
     return {"task_id": task_id, "status": task.status}
 
