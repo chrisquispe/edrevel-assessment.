@@ -83,6 +83,12 @@ The CV pipeline is fully modular — each stage (frame extraction, detection, tr
 - **NumPy** — implicitly used via OpenCV/YOLO
 - **React + TypeScript + Vite** — frontend
 
+## Frontend Design
+
+The UI uses a dark slate background with cyan and amber accents — a deliberate choice to feel like a technical/lab dashboard rather than a generic consumer app, fitting the subject matter (analyzing lab equipment footage). Amber marks "moving" segments, slate-gray marks "stationary," and cyan marks interaction ranges, chosen for clear visual contrast against the dark background and against each other.
+
+The core visualization is a per-object horizontal timeline bar: position along the bar corresponds to the frame's position in the video, color indicates motion state, and a thin underline marks when the person was interacting with that object. This was chosen over a plain table of frame ranges because it lets someone see, at a glance, when in the video something happened without reading raw numbers — directly addressing the assessment's request to "visualize object motion using a modern UI paradigm."
+
 ## Technical Approach
 
 **Object tracking**: custom IoU (Intersection over Union) based tracker. Matches detections across frames by bounding box overlap, tuned against the sample video (`iou_threshold=0.25`, `max_frames_missing=35` to tolerate brief occlusion).
@@ -97,7 +103,9 @@ These are real limitations I found by actually testing against the sample video 
 
 - **Object names aren't always accurate.** The AI model I used (YOLO) was trained to recognize 80 everyday objects — things like people, laptops, bottles, chairs. It was never trained on lab equipment, so when it sees something like a spectrophotometer, it guesses the closest thing it knows (in this case, "laptop," because the screen looks similar). I manually relabel a few of these guesses to more accurate names for display purposes, but the underlying detection still only "knows" its original 80 categories.
 
-- **Some objects are invisible to the model entirely.** Thin things like cables/wires, and complex equipment like the robotic arm or microscope, don't get detected at all — not even with the wrong label. They're just too different from anything in the model's training to register as "an object" in the first place. This is different from the mislabeling issue above: it's not a wrong guess, it's no guess at all. The timing of cable-related actions still shows up indirectly, though, through interactions with nearby equipment that *is* detected.
+- **The cable is never detected as its own object.** Despite being central to the video (the person holds it and plugs it into the spectrophotometer), the cable never appears anywhere in the results — not mislabeled, not even as a low-confidence guess. YOLO simply has no "cable" or "wire" category in its 80 trained classes, and a thin, black, flexible cable doesn't visually resemble any of the other categories it does know, either. The timing of cable-handling actions is still reflected indirectly, though: the spectrophotometer's `interactions` frame ranges (0-12, 22-45) line up with the exact moments he's holding and plugging in the cable, verified against the actual video footage.
+
+- **The robotic arm and microscope assembly are also never detected**, for a related but distinct reason: unlike the cable (which is invisible due to being too small/thin), these are simply too mechanically complex and don't resemble any of YOLO's 80 trained categories even loosely — the model doesn't attempt a guess at all.
 
 - **If the camera moves, it can look like objects are moving too.** Our motion detection assumes the camera stays still. Near the end of the sample video, the camera shifts slightly (zooms out), which makes stationary background items (like glassware on a shelf) appear to "move" in our results — even though they never actually moved. Fixing this properly would require the system to first figure out how much the camera itself moved, then subtract that out before judging whether an object moved.
 
